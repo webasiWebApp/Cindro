@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 const getSettings = async (req, res, next) => {
   try {
-    const settings = await prisma.appSetting.findFirst();
+    const settings = await prisma.appSetting.findUnique({ where: { userId: req.user.id } });
     res.json(settings || {});
   } catch (error) {
     next(error);
@@ -12,7 +12,7 @@ const getSettings = async (req, res, next) => {
 
 const updateSettings = async (req, res, next) => {
   try {
-    let settings = await prisma.appSetting.findFirst();
+    let settings = await prisma.appSetting.findUnique({ where: { userId: req.user.id } });
     if (settings) {
       settings = await prisma.appSetting.update({
         where: { id: settings.id },
@@ -20,7 +20,7 @@ const updateSettings = async (req, res, next) => {
       });
     } else {
       settings = await prisma.appSetting.create({
-        data: req.body
+        data: { ...req.body, userId: req.user.id }
       });
     }
     res.json(settings);

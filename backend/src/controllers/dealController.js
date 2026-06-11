@@ -6,7 +6,7 @@ const getDeals = async (req, res, next) => {
   try {
     const { search, startDate, endDate, status, sortBy, page = 1, limit = 10 } = req.query;
 
-    const where = {};
+    const where = { createdById: req.user.id };
     if (search) {
       where.OR = [
         { dealName: { contains: search, mode: 'insensitive' } },
@@ -31,7 +31,7 @@ const getDeals = async (req, res, next) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     const [deals, total] = await Promise.all([
-      prisma.deal.findMany({ where, orderBy, skip, take: Number(limit) }),
+      prisma.deal.findMany({ where, orderBy, skip, take: Number(limit), include: { items: true } }),
       prisma.deal.count({ where })
     ]);
 
@@ -48,8 +48,8 @@ const getDeals = async (req, res, next) => {
 
 const getDealById = async (req, res, next) => {
   try {
-    const deal = await prisma.deal.findUnique({ where: { id: req.params.id } });
-    if (!deal) {
+    const deal = await prisma.deal.findUnique({ where: { id: req.params.id }, include: { items: true } });
+    if (!deal || deal.createdById !== req.user.id) {
       res.status(404);
       throw new Error('Deal not found');
     }
@@ -70,7 +70,7 @@ const createDeal = async (req, res, next) => {
     const calculatedData = calculateDealTotals(req.body);
     
     // Auto generate ID
-    const lastDeal = await prisma.deal.findFirst({ orderBy: { createdAt: 'desc' }, select: { dealId: true } });
+    const lastDeal = await prisma.deal.findFirst({ where: { createdById: req.user.id }, orderBy: { createdAt: 'desc' }, select: { dealId: true } });
     const newDealId = generateDealId(lastDeal ? lastDeal.dealId : null);
 
     const deal = await prisma.deal.create({
@@ -79,12 +79,18 @@ const createDeal = async (req, res, next) => {
         dealName: calculatedData.dealName || 'Unnamed Deal',
         date: calculatedData.date ? new Date(calculatedData.date) : new Date(),
         notes: calculatedData.notes,
-        itemName: calculatedData.itemName,
-        quantity: Number(calculatedData.quantity),
-        costPricePerItem: calculatedData.costPricePerItem,
         totalStockCost: calculatedData.totalStockCost,
+        items: {
+          create: calculatedData.items.map(item => ({
+            itemName: item.itemName,
+            quantity: item.quantity,
+            costPricePerItem: item.costPricePerItem,
+            totalCost: item.totalCost
+          }))
+        },
         flightCost: calculatedData.flightCost,
         luggageCost: calculatedData.luggageCost,
+        baggageAllowanceCost: calculatedData.baggageAllowanceCost,
         transportCost: calculatedData.transportCost,
         packageCost: calculatedData.packageCost,
         salaryExpense: calculatedData.salaryExpense,
@@ -117,7 +123,7 @@ const createDeal = async (req, res, next) => {
 const updateDeal = async (req, res, next) => {
   try {
     const existing = await prisma.deal.findUnique({ where: { id: req.params.id } });
-    if (!existing) {
+    if (!existing || existing.createdById !== req.user.id) {
       res.status(404);
       throw new Error('Deal not found');
     }
@@ -137,12 +143,19 @@ const updateDeal = async (req, res, next) => {
         dealName: calculatedData.dealName,
         date: calculatedData.date ? new Date(calculatedData.date) : existing.date,
         notes: calculatedData.notes,
-        itemName: calculatedData.itemName,
-        quantity: Number(calculatedData.quantity),
-        costPricePerItem: calculatedData.costPricePerItem,
         totalStockCost: calculatedData.totalStockCost,
+        items: {
+          deleteMany: {},
+          create: calculatedData.items.map(item => ({
+            itemName: item.itemName,
+            quantity: item.quantity,
+            costPricePerItem: item.costPricePerItem,
+            totalCost: item.totalCost
+          }))
+        },
         flightCost: calculatedData.flightCost,
         luggageCost: calculatedData.luggageCost,
+        baggageAllowanceCost: calculatedData.baggageAllowanceCost,
         transportCost: calculatedData.transportCost,
         packageCost: calculatedData.packageCost,
         salaryExpense: calculatedData.salaryExpense,
@@ -174,7 +187,7 @@ const updateDeal = async (req, res, next) => {
 const deleteDeal = async (req, res, next) => {
   try {
     const deal = await prisma.deal.findUnique({ where: { id: req.params.id } });
-    if (!deal) {
+    if (!deal || deal.createdById !== req.user.id) {
       res.status(404);
       throw new Error('Deal not found');
     }
@@ -189,7 +202,7 @@ const deleteDeal = async (req, res, next) => {
 const getDashboardSummary = async (req, res, next) => {
   try {
     // We could optimize this using aggregate functions
-    const allDeals = await prisma.deal.findMany();
+    const allDeals = await prisma.deal.findMany({ where: { createdById: req.user.id } });
     
     let totalDeals = allDeals.length;
     let totalRevenue = 0;
@@ -244,12 +257,13 @@ const getDashboardSummary = async (req, res, next) => {
     const monthlyExpenses = last6Months.map(m => ({ name: m.month, expenses: m.expenses }));
 
     const bestPerformingDeals = await prisma.deal.findMany({
-      where: { status: 'PROFITABLE' },
+      where: { status: 'PROFITABLE', createdById: req.user.id },
       orderBy: { netProfit: 'desc' },
       take: 5
     });
 
     const recentDeals = await prisma.deal.findMany({
+      where: { createdById: req.user.id },
       orderBy: { createdAt: 'desc' },
       take: 5
     });

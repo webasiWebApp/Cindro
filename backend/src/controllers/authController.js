@@ -9,6 +9,51 @@ const generateToken = (id, role) => {
   });
 };
 
+const register = async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      res.status(400);
+      throw new Error('Please provide name, email, and password');
+    }
+
+    const userExists = await prisma.user.findUnique({ where: { email } });
+
+    if (userExists) {
+      res.status(400);
+      throw new Error('User already exists');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: 'ADMIN', // Default role
+      },
+    });
+
+    if (user) {
+      res.status(201).json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user.id, user.role),
+      });
+    } else {
+      res.status(400);
+      throw new Error('Invalid user data');
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -69,4 +114,32 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { login, logout, getMe };
+const updateProfile = async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    const { name, password } = req.body;
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.passwordHash = await bcrypt.hash(password, salt);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: { id: true, name: true, email: true, role: true }
+    });
+
+    res.json(updatedUser);
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, logout, getMe, updateProfile };

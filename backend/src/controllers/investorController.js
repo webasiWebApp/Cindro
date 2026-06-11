@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 const getInvestorsSummary = async (req, res, next) => {
   try {
-    const deals = await prisma.deal.findMany();
+    const deals = await prisma.deal.findMany({ where: { createdById: req.user.id } });
     
     // We only have Investor 1 and Investor 2 loosely defined in the deals as strings for now
     // according to the schema logic. So we group by investor name.
@@ -36,7 +36,7 @@ const getInvestorsSummary = async (req, res, next) => {
 const getInvestorPayouts = async (req, res, next) => {
   try {
     const deals = await prisma.deal.findMany({
-      where: { status: { in: ['PROFITABLE', 'LOSS', 'CLOSED'] } },
+      where: { status: { in: ['PROFITABLE', 'LOSS', 'CLOSED'] }, createdById: req.user.id },
       select: {
         dealId: true,
         dealName: true,

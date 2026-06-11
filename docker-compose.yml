@@ -28,7 +28,7 @@ services:
       - PORT=5000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-deal_tracker_user}:${POSTGRES_PASSWORD:-secure_db_password}@postgres:5432/${POSTGRES_DB:-deal_tracker_db}?schema=public
       - JWT_SECRET=${JWT_SECRET:-default_jwt_secret}
-      - AUTH_DISABLED=true
+      - AUTH_DISABLED=false
     depends_on:
       postgres:
         condition: service_healthy

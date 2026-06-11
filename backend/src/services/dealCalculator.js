@@ -7,7 +7,6 @@ function validateDealInput(input) {
   const errors = [];
 
   const requiredFields = [
-    'itemName', 'quantity', 'costPricePerItem', 
     'investor1Name', 'investor1Contribution',
     'investor2Name', 'investor2Contribution',
     'currency'
@@ -19,12 +18,18 @@ function validateDealInput(input) {
     }
   }
 
-  if (input.quantity !== undefined && Number(input.quantity) <= 0) {
-    errors.push('Quantity must be greater than 0');
+  if (!input.items || !Array.isArray(input.items) || input.items.length === 0) {
+    errors.push('Deal must have at least one stock item');
+  } else {
+    input.items.forEach((item, index) => {
+      if (!item.itemName) errors.push(`Item ${index + 1}: Missing item name`);
+      if (item.quantity === undefined || Number(item.quantity) <= 0) errors.push(`Item ${index + 1}: Quantity must be greater than 0`);
+      if (item.costPricePerItem === undefined || Number(item.costPricePerItem) < 0) errors.push(`Item ${index + 1}: Cost Price cannot be negative`);
+    });
   }
 
   const numericFields = [
-    'costPricePerItem', 'flightCost', 'luggageCost', 'transportCost', 
+    'flightCost', 'luggageCost', 'baggageAllowanceCost', 'transportCost', 
     'packageCost', 'salaryExpense', 'additionalExpenses', 
     'investor1Contribution', 'investor2Contribution', 'totalSaleRevenue'
   ];
@@ -80,10 +85,9 @@ function formatCurrency(amount, currency = 'GBP') {
  */
 function calculateDealTotals(input) {
   // Coerce inputs to numbers, defaulting to 0 where applicable
-  const quantity = Number(input.quantity) || 0;
-  const costPricePerItem = Number(input.costPricePerItem) || 0;
   const flightCost = Number(input.flightCost) || 0;
   const luggageCost = Number(input.luggageCost) || 0;
+  const baggageAllowanceCost = Number(input.baggageAllowanceCost) || 0;
   const transportCost = Number(input.transportCost) || 0;
   const packageCost = Number(input.packageCost) || 0;
   const salaryExpense = Number(input.salaryExpense) || 0;
@@ -100,11 +104,24 @@ function calculateDealTotals(input) {
   const manualStatus = input.status;
 
   // --- 1. Basic Expenses ---
-  const totalStockCost = quantity * costPricePerItem;
+  let totalStockCost = 0;
+  const processedItems = (input.items || []).map(item => {
+    const qty = Number(item.quantity) || 0;
+    const cost = Number(item.costPricePerItem) || 0;
+    const totalCost = qty * cost;
+    totalStockCost += totalCost;
+    return {
+      itemName: item.itemName,
+      quantity: qty,
+      costPricePerItem: cost,
+      totalCost
+    };
+  });
   
   const totalExpenses = totalStockCost 
     + flightCost 
     + luggageCost 
+    + baggageAllowanceCost
     + transportCost 
     + packageCost 
     + salaryExpense 
@@ -150,6 +167,7 @@ function calculateDealTotals(input) {
 
   return {
     ...input,
+    items: processedItems,
     totalStockCost,
     totalExpenses,
     totalCapitalInvested,

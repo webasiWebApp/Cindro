@@ -56,6 +56,12 @@ export default function DealDetailsPage({ params }: { params: { id: string } }) 
   if (loading) return <div className="p-8 text-center">Loading deal details...</div>;
   if (!deal) return <div className="p-8 text-center text-red-500">Deal not found</div>;
 
+  const inv1 = Number(deal.investor1Contribution) || 0;
+  const inv2 = Number(deal.investor2Contribution) || 0;
+  const totalCapital = inv1 + inv2;
+  const inv1Percent = totalCapital > 0 ? Math.round((inv1 / totalCapital) * 100) : 0;
+  const inv2Percent = totalCapital > 0 ? Math.round((inv2 / totalCapital) * 100) : 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -87,17 +93,32 @@ export default function DealDetailsPage({ params }: { params: { id: string } }) 
         </Card>
 
         <Card>
+          <h2 className="font-bold border-b pb-2 mb-4">Stock Items</h2>
+          <div className="space-y-3">
+            {deal.items && deal.items.map((item: any) => (
+              <div key={item.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0 last:pb-0">
+                <div>
+                  <div className="font-bold">{item.itemName}</div>
+                  <div className="text-secondary">{item.quantity} units @ {formatAmount(item.costPricePerItem)}</div>
+                </div>
+                <div className="font-bold text-right">{formatAmount(item.totalCost)}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
           <h2 className="font-bold border-b pb-2 mb-4">Investor Payouts</h2>
           <div className="space-y-4">
             <div>
               <div className="font-bold">{deal.investor1Name || 'Investor 1'}</div>
-              <div className="flex justify-between text-sm"><span>Contribution:</span> <span>{formatAmount(deal.investor1Contribution)}</span></div>
+              <div className="flex justify-between text-sm"><span>Contribution:</span> <span>{formatAmount(deal.investor1Contribution)} <span className="text-secondary ml-1">({inv1Percent}%)</span></span></div>
               <div className="flex justify-between text-sm"><span>Profit Share:</span> <span>{formatAmount(deal.profitShareInvestor1)}</span></div>
               <div className="flex justify-between font-bold text-green-600 border-t mt-1 pt-1"><span>Final Payout:</span> <span>{formatAmount(deal.finalPayoutInvestor1)}</span></div>
             </div>
             <div className="pt-2 border-t border-dashed">
               <div className="font-bold">{deal.investor2Name || 'Investor 2'}</div>
-              <div className="flex justify-between text-sm"><span>Contribution:</span> <span>{formatAmount(deal.investor2Contribution)}</span></div>
+              <div className="flex justify-between text-sm"><span>Contribution:</span> <span>{formatAmount(deal.investor2Contribution)} <span className="text-secondary ml-1">({inv2Percent}%)</span></span></div>
               <div className="flex justify-between text-sm"><span>Profit Share:</span> <span>{formatAmount(deal.profitShareInvestor2)}</span></div>
               <div className="flex justify-between font-bold text-green-600 border-t mt-1 pt-1"><span>Final Payout:</span> <span>{formatAmount(deal.finalPayoutInvestor2)}</span></div>
             </div>

@@ -57,6 +57,13 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretcindrokey2026');
+    
+    // Verify user still exists in database
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user) {
+      return res.status(401).json({ error: 'Not authorized, user no longer exists' });
+    }
+
     req.user = decoded;
     next();
   } catch (error) {

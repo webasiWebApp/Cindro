@@ -6,26 +6,27 @@ import { authService } from '@/services/authService';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error('Please enter email and password');
+    if (!name || !email || !password) {
+      toast.error('Please enter name, email, and password');
       return;
     }
 
     try {
       setLoading(true);
-      await authService.login(email, password);
-      toast.success('Logged in successfully');
+      await authService.register(name, email, password);
+      toast.success('Registered successfully');
       router.push('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      toast.error(error.response?.data?.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -34,12 +35,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full  p-8">
-        <h1 className="font-headline-lg text-primary text-center mb-6">Cindro Deal Tracker</h1>
-        <form className="space-y-4" onSubmit={handleLogin}>
+        <h1 className="font-headline-lg text-primary text-center mb-6">Create an Account</h1>
+        <form className="space-y-4" onSubmit={handleRegister}>
+          <Input 
+            label="Name" 
+            type="text" 
+            placeholder="John Doe" 
+            value={name}
+            onChange={(e: any) => setName(e.target.value)}
+          />
           <Input 
             label="Email" 
             type="email" 
-            placeholder="admin@cindro.com" 
+            placeholder="john@cindro.com" 
             value={email}
             onChange={(e: any) => setEmail(e.target.value)}
           />
@@ -50,15 +58,11 @@ export default function LoginPage() {
             value={password}
             onChange={(e: any) => setPassword(e.target.value)}
           />
-          <div className="flex justify-between text-sm">
-            <label className="flex items-center gap-2"><input type="checkbox" /> Remember me</label>
-            <a href="#" className="text-[#FFD700] hover:underline">Forgot password?</a>
-          </div>
           <Button className="w-full mt-4" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Creating account...' : 'Sign Up'}
           </Button>
           <div className="text-center mt-4 text-sm text-foreground/80">
-            Don't have an account? <Link href="/register" className="text-primary hover:underline">Sign up</Link>
+            Already have an account? <Link href="/login" className="text-primary hover:underline">Log in</Link>
           </div>
         </form>
       </Card>

@@ -44,8 +44,6 @@ async function generateDealPdf(deal, settings, res) {
           ["Deal ID", deal.dealId],
           ["Deal Name", deal.dealName],
           ["Status", deal.status],
-          ["Item", deal.itemName],
-          ["Quantity", String(deal.quantity)],
           ["Deal Date", new Date(deal.date).toLocaleDateString()]
         ]
       };
@@ -53,17 +51,36 @@ async function generateDealPdf(deal, settings, res) {
       doc.table(genInfoTable, { width: 300 });
       doc.moveDown(2);
 
-      // --- FINANCIAL SUMMARY ---
-      doc.fontSize(14).fillColor('#FFD700').text('Financial Breakdown').fillColor('black');
+      // --- STOCK ITEMS ---
+      doc.fontSize(14).fillColor('#FFD700').text('Stock Items').fillColor('black');
       doc.moveDown(0.5);
 
       const cur = deal.currency;
+      const itemsRows = (deal.items || []).map(item => [
+        item.itemName,
+        String(item.quantity),
+        formatCurrency(item.costPricePerItem, cur),
+        formatCurrency(item.totalCost, cur)
+      ]);
+
+      const itemsTable = {
+        headers: ["Item Name", "Quantity", "Unit Cost", "Total Cost"],
+        rows: itemsRows.length > 0 ? itemsRows : [["No items", "-", "-", "-"]]
+      };
+
+      doc.table(itemsTable, { width: 500 });
+      doc.moveDown(2);
+
+      // --- FINANCIAL SUMMARY ---
+      doc.fontSize(14).fillColor('#FFD700').text('Financial Breakdown').fillColor('black');
+      doc.moveDown(0.5);
       const finTable = {
         headers: ["Category", "Amount"],
         rows: [
           ["Total Stock Cost", formatCurrency(deal.totalStockCost, cur)],
           ["Flight Cost", formatCurrency(deal.flightCost, cur)],
           ["Luggage Cost", formatCurrency(deal.luggageCost, cur)],
+          ["Baggage Allowance", formatCurrency(deal.baggageAllowanceCost, cur)],
           ["Transport Cost", formatCurrency(deal.transportCost, cur)],
           ["Package Cost", formatCurrency(deal.packageCost, cur)],
           ["Salary & Additional", formatCurrency(Number(deal.salaryExpense) + Number(deal.additionalExpenses), cur)],
